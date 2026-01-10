@@ -1,0 +1,484 @@
+import os
+import requests
+import streamlit as st
+from dotenv import load_dotenv
+from datetime import datetime
+from pathlib import Path
+
+# -----------------------
+# Config
+# -----------------------
+load_dotenv()
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+
+st.set_page_config(
+    page_title="GreenChain AI",
+    page_icon="📦",
+    layout="wide",
+)
+
+BASE_DIR = Path(__file__).parent
+ASSETS_DIR = BASE_DIR / "assets"
+
+
+# -----------------------
+# Styling (Dark glass UI)
+# -----------------------
+def load_css():
+    st.markdown(
+        """
+        <style>
+        .block-container { padding-top: 1.4rem; padding-bottom: 2rem; }
+
+        .section-title { font-size: 1.35rem; font-weight: 900; margin-top: 0.85rem; margin-bottom: 0.35rem; }
+        .muted { color: rgba(229,231,235,0.75); }
+
+        .card {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 18px;
+            padding: 1rem 1.05rem;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+            backdrop-filter: blur(8px);
+        }
+
+        .divider { height: 1px; background: rgba(255,255,255,0.08); margin: 1.05rem 0; }
+
+        .metric-card {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 18px;
+            padding: 0.85rem 1rem;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+            backdrop-filter: blur(8px);
+        }
+        .metric-label { color: rgba(229,231,235,0.75); font-size: 0.88rem; font-weight: 600; }
+        .metric-value { font-size: 1.55rem; font-weight: 900; margin-top: 0.1rem; }
+
+        /* Banner */
+        .banner-wrap img {
+            border-radius: 18px !important;
+            max-height: 240px;
+            object-fit: cover;
+        }
+
+        /* Sidebar logo */
+        .sidebar-logo img {
+            width: 100% !important;
+            max-width: 170px;
+            border-radius: 14px !important;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+load_css()
+
+
+# -----------------------
+# Image helper (png/jpg/jpeg/webp)
+# -----------------------
+def img_if_exists(base_name: str, *, width: int | None = None, full: bool = False):
+    """
+    Loads frontend/assets/{base_name}.{png/jpg/jpeg/webp}
+    Example: img_if_exists("logo"), img_if_exists("banner")
+    """
+    for ext in ["png", "jpg", "jpeg", "webp"]:
+        path = ASSETS_DIR / f"{base_name}.{ext}"
+        if path.exists():
+            if full:
+                st.image(str(path), use_container_width=True)
+            else:
+                st.image(str(path), width=width)
+            return True
+    return False
+
+
+# -----------------------
+# Render helpers
+# -----------------------
+def render_bullets(items):
+    if not items:
+        st.write("—")
+        return
+    for x in items:
+        st.write(f"- {x}")
+
+
+def metric_box(label: str, value):
+    st.markdown(
+        f"""
+        <div class="metric-card">
+            <div class="metric-label">{label}</div>
+            <div class="metric-value">{value}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_risk_report(risk_report: dict):
+    top_risks = risk_report.get("top_risks", [])
+    mitigations = risk_report.get("mitigation_plan", [])
+    quick_wins = risk_report.get("quick_wins_2_weeks", [])
+    notes = risk_report.get("notes", "")
+
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.subheader("Top Risks")
+    if not top_risks:
+        st.info("No risk items returned.")
+    else:
+        for i, r in enumerate(top_risks, start=1):
+            risk = r.get("risk", "—")
+            sev = r.get("severity_1_to_5", "—")
+            prob = r.get("probability_1_to_5", "—")
+            impact = r.get("impact", "—")
+            st.markdown(
+                f"""
+**{i}. {risk}**  
+- Severity: **{sev}/5**  
+- Probability: **{prob}/5**  
+- Business impact: {impact}
+"""
+            )
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.subheader("Mitigation Plan")
+        render_bullets(mitigations)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with col2:
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.subheader("Quick Wins (≤ 2 weeks)")
+        render_bullets(quick_wins)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    if notes:
+        st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.subheader("Notes")
+        st.write(notes)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+
+def render_efficiency_plan(eff: dict):
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.subheader("Transport Efficiency")
+    for item in eff.get("transport_efficiency", []):
+        st.markdown(
+            f"- **{item.get('action','—')}**  \n"
+            f"  Benefit: {item.get('business_benefit','—')}  \n"
+            f"  Effort: **{item.get('effort','—')}**"
+        )
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.subheader("Packaging & Damage Reduction")
+    for item in eff.get("packaging_damage_reduction", []):
+        st.markdown(
+            f"- **{item.get('action','—')}**  \n"
+            f"  Benefit: {item.get('business_benefit','—')}  \n"
+            f"  Effort: **{item.get('effort','—')}**"
+        )
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.subheader("Inventory & Waste Reduction")
+    for item in eff.get("inventory_waste_reduction", []):
+        st.markdown(
+            f"- **{item.get('action','—')}**  \n"
+            f"  Benefit: {item.get('business_benefit','—')}  \n"
+            f"  Effort: **{item.get('effort','—')}**"
+        )
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+def render_action_plan(plan: dict):
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.subheader("Executive Summary")
+    render_bullets(plan.get("executive_summary", []))
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.subheader("30-Day Plan")
+        tasks_30 = plan.get("plan_30_days", [])
+        if tasks_30:
+            for i, t in enumerate(tasks_30, start=1):
+                st.markdown(
+                    f"**{i}. {t.get('task','—')}**  \n"
+                    f"Owner: **{t.get('owner','—')}**  \n"
+                    f"Expected result: {t.get('expected_result','—')}"
+                )
+        else:
+            st.write("—")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with col2:
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.subheader("90-Day Plan")
+        tasks_90 = plan.get("plan_90_days", [])
+        if tasks_90:
+            for i, t in enumerate(tasks_90, start=1):
+                st.markdown(
+                    f"**{i}. {t.get('task','—')}**  \n"
+                    f"Owner: **{t.get('owner','—')}**  \n"
+                    f"Expected result: {t.get('expected_result','—')}"
+                )
+        else:
+            st.write("—")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.subheader("KPIs")
+    kpis = plan.get("kpis", [])
+    if kpis:
+        for k in kpis:
+            st.markdown(f"- **{k.get('kpi','—')}** — Target: {k.get('target','—')}")
+    else:
+        st.write("—")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+def format_report_text(data: dict) -> str:
+    inv = data.get("inventory_strategy", {})
+    risk = data.get("risk_report", {})
+    eff = data.get("efficiency_plan", {})
+    plan = data.get("action_plan", {})
+    dis = data.get("disruption_signals", {})
+
+    lines = []
+    lines.append("GREENCHAIN AI — SUPPLY CHAIN REPORT")
+    lines.append(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    lines.append("")
+
+    lines.append("== Inventory Strategy ==")
+    lines.append(f"EOQ: {inv.get('eoq_units')}")
+    lines.append(f"Reorder Point: {inv.get('reorder_point_units')}")
+    lines.append(f"Safety Stock: {inv.get('safety_stock_units')}")
+    lines.append("")
+    lines.append("Interpretation:")
+    for x in inv.get("interpretation", []):
+        lines.append(f"- {x}")
+
+    lines.append("")
+    lines.append("== Disruption Signals (Tavily) ==")
+    lines.append(dis.get("answer_summary", "") or "—")
+
+    lines.append("")
+    lines.append("== Risk Report ==")
+    for r in risk.get("top_risks", []):
+        lines.append(
+            f"- {r.get('risk')} | Sev {r.get('severity_1_to_5')}/5 | Prob {r.get('probability_1_to_5')}/5"
+        )
+        lines.append(f"  Impact: {r.get('impact')}")
+
+    lines.append("")
+    lines.append("Mitigation Plan:")
+    for x in risk.get("mitigation_plan", []):
+        lines.append(f"- {x}")
+
+    lines.append("")
+    lines.append("Quick Wins (2 weeks):")
+    for x in risk.get("quick_wins_2_weeks", []):
+        lines.append(f"- {x}")
+
+    lines.append("")
+    lines.append("== Efficiency Plan ==")
+    for group, title in [
+        ("transport_efficiency", "Transport"),
+        ("packaging_damage_reduction", "Packaging"),
+        ("inventory_waste_reduction", "Inventory/Waste"),
+    ]:
+        lines.append(f"{title}:")
+        for x in eff.get(group, []):
+            lines.append(f"- {x.get('action')} (Effort: {x.get('effort')}) | Benefit: {x.get('business_benefit')}")
+        lines.append("")
+
+    lines.append("== Action Plan ==")
+    lines.append("Executive Summary:")
+    for x in plan.get("executive_summary", []):
+        lines.append(f"- {x}")
+    lines.append("")
+
+    lines.append("30-Day Plan:")
+    for t in plan.get("plan_30_days", []):
+        lines.append(f"- {t.get('task')} [{t.get('owner')}] → {t.get('expected_result')}")
+    lines.append("")
+
+    lines.append("90-Day Plan:")
+    for t in plan.get("plan_90_days", []):
+        lines.append(f"- {t.get('task')} [{t.get('owner')}] → {t.get('expected_result')}")
+    lines.append("")
+
+    lines.append("KPIs:")
+    for k in plan.get("kpis", []):
+        lines.append(f"- {k.get('kpi')} → {k.get('target')}")
+
+    return "\n".join(lines)
+
+
+# -----------------------
+# Sidebar
+# -----------------------
+with st.sidebar:
+    st.markdown('<div class="sidebar-logo">', unsafe_allow_html=True)
+    img_if_exists("logo")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown("## GreenChain AI")
+    st.caption("Supply Chain Decision Copilot")
+
+    st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+
+    st.header("Supply Chain Inputs")
+    product = st.text_input("Product", value="Rice")
+    origin = st.text_input("Origin", value="Jaipur, India")
+    destination = st.text_input("Destination", value="Dubai, UAE")
+
+    monthly_demand = st.number_input("Monthly demand (units)", min_value=1, value=5000)
+    priority = st.selectbox("Priority", ["low_cost", "fast_delivery", "sustainability"], index=0)
+
+    st.subheader("Advanced (Optional)")
+    lead_time_days = st.slider("Lead time (days)", 1, 60, 14)
+    holding_cost = st.number_input("Holding cost per unit / year", min_value=1.0, value=20.0)
+    ordering_cost = st.number_input("Ordering cost per order", min_value=1.0, value=200.0)
+
+    # backend schema requires >= 0.5
+    service_level = st.slider("Service level", min_value=0.50, max_value=0.99, value=0.95, step=0.01)
+
+    st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+    run_btn = st.button("Generate Plan", type="primary")
+
+
+# -----------------------
+# Banner only (hero section removed as requested)
+# -----------------------
+st.markdown('<div class="banner-wrap">', unsafe_allow_html=True)
+img_if_exists("banner", full=True)
+st.markdown("</div>", unsafe_allow_html=True)
+
+st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+
+
+# -----------------------
+# Backend call
+# -----------------------
+def call_backend(payload: dict) -> dict:
+    res = requests.post(f"{BACKEND_URL}/analyze_supply_chain", json=payload, timeout=240)
+    if res.status_code != 200:
+        raise RuntimeError(f"Backend error {res.status_code}: {res.text}")
+    return res.json()
+
+
+# -----------------------
+# Main render
+# -----------------------
+if run_btn:
+    payload = {
+        "product": product,
+        "origin": origin,
+        "destination": destination,
+        "monthly_demand": int(monthly_demand),
+        "lead_time_days": int(lead_time_days),
+        "holding_cost_per_unit_year": float(holding_cost),
+        "ordering_cost": float(ordering_cost),
+        "service_level": float(service_level),
+        "priority": priority,
+    }
+
+    with st.spinner("Running agentic analysis (Gemini + Tavily)..."):
+        try:
+            data = call_backend(payload)
+        except Exception as e:
+            st.error(str(e))
+            st.stop()
+
+    inv = data.get("inventory_strategy", {})
+
+    st.markdown('<div class="section-title">Inventory Strategy</div>', unsafe_allow_html=True)
+
+    m1, m2, m3, m4 = st.columns(4)
+    with m1:
+        metric_box("EOQ (units/order)", inv.get("eoq_units", "—"))
+    with m2:
+        metric_box("Reorder Point", inv.get("reorder_point_units", "—"))
+    with m3:
+        metric_box("Safety Stock", inv.get("safety_stock_units", "—"))
+    with m4:
+        metric_box("Avg days/order", inv.get("avg_days_between_orders", "—"))
+
+    st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown("### Interpretation")
+    for line in inv.get("interpretation", []):
+        st.write(f"- {line}")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+
+    tab0, tab1, tab2, tab3 = st.tabs(["Disruption Signals", "Risk Report", "Efficiency Plan", "Action Plan"])
+
+    with tab0:
+        st.markdown('<div class="section-title">Disruption Signals</div>', unsafe_allow_html=True)
+        dis = data.get("disruption_signals", {})
+
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.markdown("### Tavily Summary")
+        st.write(dis.get("answer_summary", "") or "—")
+
+        st.markdown("### Sources")
+        sources = dis.get("sources", [])
+        if not sources:
+            st.write("—")
+        else:
+            for s in sources:
+                st.markdown(f"- [{s.get('title','source')}]({s.get('url','')}) — {s.get('content_snippet','')}")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with tab1:
+        render_risk_report(data.get("risk_report", {}))
+
+    with tab2:
+        render_efficiency_plan(data.get("efficiency_plan", {}))
+
+    with tab3:
+        render_action_plan(data.get("action_plan", {}))
+
+    st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
+    report_text = format_report_text(data)
+
+    st.download_button(
+        label="Download Report (TXT)",
+        data=report_text.encode("utf-8"),
+        file_name="greenchain_report.txt",
+        mime="text/plain",
+        type="primary",
+    )
+
+else:
+    st.markdown(
+        '<div class="card"><b>How to use:</b><br>'
+        'Fill inputs in the sidebar and click <b>Generate Plan</b> to run the multi-agent analysis.</div>',
+        unsafe_allow_html=True,
+    )
