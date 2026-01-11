@@ -111,67 +111,51 @@ st.markdown(
     }
 
     /* ============================================================
-       ✅✅✅ STREAMLIT CLOUD SLIDER FIX (NEW DOM + OLD DOM)
-       - Filled track green
-       - Thumb green
-       - Value label green text WITHOUT background bubble
+       ✅ FIXED SLIDER STYLING (Green Number + Green Trail)
        ============================================================ */
 
-    /* 1) Make slider filled part green (BaseWeb uses div + span mixed depending on build) */
-    div[data-testid="stSlider"] [data-baseweb="slider"] * {
-        box-shadow: none !important;
-    }
-
-    /* Unfilled track */
-    div[data-testid="stSlider"] [data-baseweb="slider"] > div > div {
-        background-color: rgba(255,255,255,0.20) !important;
-    }
-
-    /* Filled track (Cloud frequently uses nested divs) */
+    /* 1) Filled track (the trail left behind the slider point) */
     div[data-testid="stSlider"] [data-baseweb="slider"] > div > div > div {
         background-color: var(--primary) !important;
     }
 
-    /* Some Streamlit builds use span for filled track */
-    div[data-testid="stSlider"] [data-baseweb="slider"] div[style*="background"] {
+    /* Specific selector for the active trail color in Streamlit Cloud builds */
+    div[data-testid="stSlider"] [data-baseweb="slider"] div[style*="left: 0%"] {
         background-color: var(--primary) !important;
     }
 
-    /* 2) Thumb / handle */
+    /* 2) Thumb / handle (the slider point) */
     div[data-testid="stSlider"] [role="slider"] {
         background-color: var(--primary) !important;
         border: 2px solid var(--primary) !important;
-        box-shadow: 0 0 0 4px rgba(46,204,113,0.25) !important;
+        box-shadow: 0 0 0 4px rgba(46,204,113,0.2) !important;
     }
 
-    /* 3) Value label (number above slider): remove background box, make green text */
-    div[data-testid="stSlider"] [data-baseweb="slider"] [data-baseweb="tooltip"] {
-        background: transparent !important;   /* remove green bubble */
-        color: var(--primary) !important;     /* green number */
-        padding: 0 !important;
-        border: none !important;
-        font-weight: 900 !important;
-        text-shadow: none !important;
-    }
-
-    /* tooltip inner container */
+    /* 3) Value label (the number floating above the slider point) */
+    /* Target the text inside the tooltip bubble */
     div[data-testid="stSlider"] [data-baseweb="slider"] [data-baseweb="tooltip"] > div {
         background: transparent !important;
         color: var(--primary) !important;
+        font-weight: 900 !important;
+        font-size: 1rem !important;
         border: none !important;
-        padding: 0 !important;
     }
 
-    /* tooltip arrow (remove) */
+    /* Target the bubble container itself to ensure no orange background */
+    div[data-testid="stSlider"] [data-baseweb="slider"] [data-baseweb="tooltip"] {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    /* Hide the little arrow beneath the number bubble */
     div[data-testid="stSlider"] [data-baseweb="slider"] [data-baseweb="tooltip"] svg {
         display: none !important;
     }
 
-    /* fallback selector for older builds */
+    /* Fallback for the value text color in newer Streamlit versions */
     div[data-testid="stSlider"] div[aria-valuenow] {
         color: var(--primary) !important;
-        font-weight: 900 !important;
-        background: transparent !important;
     }
 
     /* ✅ Tabs styling */
@@ -315,10 +299,7 @@ def render_risk_report(risk_report: dict):
             impact = r.get("impact", "—")
             st.markdown(
                 f"""
-**{i}. {risk}**  
-- Severity: **{sev}/5**  
-- Probability: **{prob}/5**  
-- Business impact: {impact}
+**{i}. {risk}** - Severity: **{sev}/5** - Probability: **{prob}/5** - Business impact: {impact}
 """
             )
     st.markdown("</div>", unsafe_allow_html=True)
@@ -350,7 +331,7 @@ def render_efficiency_plan(eff: dict):
     st.subheader("Transport Efficiency")
     for item in eff.get("transport_efficiency", []):
         st.markdown(
-            f"- **{item.get('action','—')}**  \n"
+            f"- **{item.get('action','—')}** \n"
             f"  Benefit: {item.get('business_benefit','—')}  \n"
             f"  Effort: **{item.get('effort','—')}**"
         )
@@ -362,7 +343,7 @@ def render_efficiency_plan(eff: dict):
     st.subheader("Packaging & Damage Reduction")
     for item in eff.get("packaging_damage_reduction", []):
         st.markdown(
-            f"- **{item.get('action','—')}**  \n"
+            f"- **{item.get('action','—')}** \n"
             f"  Benefit: {item.get('business_benefit','—')}  \n"
             f"  Effort: **{item.get('effort','—')}**"
         )
@@ -374,7 +355,7 @@ def render_efficiency_plan(eff: dict):
     st.subheader("Inventory & Waste Reduction")
     for item in eff.get("inventory_waste_reduction", []):
         st.markdown(
-            f"- **{item.get('action','—')}**  \n"
+            f"- **{item.get('action','—')}** \n"
             f"  Benefit: {item.get('business_benefit','—')}  \n"
             f"  Effort: **{item.get('effort','—')}**"
         )
@@ -396,8 +377,8 @@ def render_action_plan(plan: dict):
         if tasks_30:
             for i, t in enumerate(tasks_30, start=1):
                 st.markdown(
-                    f"**{i}. {t.get('task','—')}**  \n"
-                    f"Owner: **{t.get('owner','—')}**  \n"
+                    f"**{i}. {t.get('task','—')}** \n"
+                    f"Owner: **{t.get('owner','—')}** \n"
                     f"Expected result: {t.get('expected_result','—')}"
                 )
         else:
@@ -411,8 +392,8 @@ def render_action_plan(plan: dict):
         if tasks_90:
             for i, t in enumerate(tasks_90, start=1):
                 st.markdown(
-                    f"**{i}. {t.get('task','—')}**  \n"
-                    f"Owner: **{t.get('owner','—')}**  \n"
+                    f"**{i}. {t.get('task','—')}** \n"
+                    f"Owner: **{t.get('owner','—')}** \n"
                     f"Expected result: {t.get('expected_result','—')}"
                 )
         else:
