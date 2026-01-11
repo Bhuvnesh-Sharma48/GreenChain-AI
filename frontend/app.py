@@ -17,6 +17,59 @@ st.set_page_config(
     layout="wide",
 )
 
+# --- Force Dark Theme (Cloud-safe) ---
+st.markdown(
+    """
+    <style>
+    /* Main app background */
+    html, body, [data-testid="stAppViewContainer"], [data-testid="stApp"] {
+        background: #070c17 !important;
+        color: #e8eef7 !important;
+    }
+
+    /* Sidebar background */
+    section[data-testid="stSidebar"] {
+        background: #0f1a2e !important;
+    }
+
+    /* Remove default white block backgrounds */
+    .block-container {
+        background: transparent !important;
+    }
+
+    /* Inputs */
+    input, textarea, select {
+        background-color: #0f1a2e !important;
+        color: #e8eef7 !important;
+        border: 1px solid rgba(255,255,255,0.1) !important;
+    }
+
+    /* Streamlit metric cards + containers */
+    div[data-testid="stMetric"], div.stMetric {
+        background: rgba(255, 255, 255, 0.06) !important;
+        border: 1px solid rgba(255,255,255,0.10) !important;
+        border-radius: 16px !important;
+        padding: 12px !important;
+    }
+
+    /* Tabs styling */
+    button[data-baseweb="tab"] {
+        background: rgba(46, 204, 113, 0.15) !important;
+        color: #e8eef7 !important;
+        border-radius: 999px !important;
+    }
+
+    /* Remove weird white padding bars */
+    header[data-testid="stHeader"] {
+        background: rgba(0,0,0,0) !important;
+    }
+
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+
 BASE_DIR = Path(__file__).parent
 ASSETS_DIR = BASE_DIR / "assets"
 
