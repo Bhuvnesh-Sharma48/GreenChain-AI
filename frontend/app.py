@@ -9,13 +9,23 @@ from pathlib import Path
 # Config
 # -----------------------
 load_dotenv()
-BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/")
 
 st.set_page_config(
     page_title="GreenChain AI",
     page_icon="📦",
     layout="wide",
 )
+
+# -----------------------
+# Session State Defaults
+# -----------------------
+if "loading" not in st.session_state:
+    st.session_state["loading"] = False
+if "result" not in st.session_state:
+    st.session_state["result"] = None
+if "last_error" not in st.session_state:
+    st.session_state["last_error"] = None
 
 # --- Force Dark Theme (Cloud-safe) ---
 st.markdown(
@@ -68,7 +78,6 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
 
 BASE_DIR = Path(__file__).parent
 ASSETS_DIR = BASE_DIR / "assets"
@@ -364,7 +373,9 @@ def format_report_text(data: dict) -> str:
     ]:
         lines.append(f"{title}:")
         for x in eff.get(group, []):
-            lines.append(f"- {x.get('action')} (Effort: {x.get('effort')}) | Benefit: {x.get('business_benefit')}")
+            lines.append(
+                f"- {x.get('action')} (Effort: {x.get('effort')}) | Benefit: {x.get('business_benefit')}"
+            )
         lines.append("")
 
     lines.append("== Action Plan ==")
@@ -388,6 +399,16 @@ def format_report_text(data: dict) -> str:
         lines.append(f"- {k.get('kpi')} → {k.get('target')}")
 
     return "\n".join(lines)
+
+
+# -----------------------
+# Backend call
+# -----------------------
+def call_backend(payload: dict) -> dict:
+    res = requests.post(f"{BACKEND_URL}/analyze_supply_chain", json=payload, timeout=240)
+    if res.status_code != 200:
+        raise RuntimeError(f"Backend error {res.status_code}: {res.text}")
+    return res.json()
 
 
 # -----------------------
@@ -420,11 +441,17 @@ with st.sidebar:
     service_level = st.slider("Service level", min_value=0.50, max_value=0.99, value=0.95, step=0.01)
 
     st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
-    run_btn = st.button("Generate Plan", type="primary")
+
+    run_btn = st.button(
+        "Generate Plan",
+        type="primary",
+        key="generate_plan_btn",
+        disabled=st.session_state["loading"],
+    )
 
 
 # -----------------------
-# Banner only (hero section removed as requested)
+# Banner only
 # -----------------------
 st.markdown('<div class="banner-wrap">', unsafe_allow_html=True)
 img_if_exists("banner", full=True)
@@ -434,19 +461,13 @@ st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
 
 
 # -----------------------
-# Backend call
+# Trigger backend call safely
 # -----------------------
-def call_backend(payload: dict) -> dict:
-    res = requests.post(f"{BACKEND_URL}/analyze_supply_chain", json=payload, timeout=240)
-    if res.status_code != 200:
-        raise RuntimeError(f"Backend error {res.status_code}: {res.text}")
-    return res.json()
+if run_btn and not st.session_state["loading"]:
+    st.session_state["loading"] = True
+    st.session_state["last_error"] = None
+    st.session_state["result"] = None
 
-
-# -----------------------
-# Main render
-# -----------------------
-if run_btn:
     payload = {
         "product": product,
         "origin": origin,
@@ -459,13 +480,27 @@ if run_btn:
         "priority": priority,
     }
 
-    with st.spinner("Running agentic analysis (Gemini + Tavily)..."):
-        try:
+    try:
+        with st.spinner("Running agentic analysis (Gemini + Tavily)..."):
             data = call_backend(payload)
-        except Exception as e:
-            st.error(str(e))
-            st.stop()
+        st.session_state["result"] = data
 
+    except Exception as e:
+        st.session_state["last_error"] = str(e)
+
+    finally:
+        st.session_state["loading"] = False
+
+
+# -----------------------
+# Main render
+# -----------------------
+if st.session_state["last_error"]:
+    st.error(st.session_state["last_error"])
+
+data = st.session_state["result"]
+
+if data:
     inv = data.get("inventory_strategy", {})
 
     st.markdown('<div class="section-title">Inventory Strategy</div>', unsafe_allow_html=True)
