@@ -26,58 +26,131 @@ if "result" not in st.session_state:
     st.session_state["result"] = None
 if "last_error" not in st.session_state:
     st.session_state["last_error"] = None
+if "trigger_run" not in st.session_state:
+    st.session_state["trigger_run"] = False
 
-# --- Force Dark Theme (Cloud-safe) ---
+
+# -----------------------
+# Force Dark Theme + Green Accent (Cloud-safe)
+# -----------------------
 st.markdown(
     """
     <style>
-    /* Main app background */
+    :root {
+        --primary: #2ecc71;
+        --bg: #070c17;
+        --sidebar: #0f1a2e;
+        --text: #e8eef7;
+        --muted: rgba(232,238,247,0.75);
+        --border: rgba(255,255,255,0.10);
+        --card: rgba(255,255,255,0.05);
+    }
+
+    /* App background */
     html, body, [data-testid="stAppViewContainer"], [data-testid="stApp"] {
-        background: #070c17 !important;
-        color: #e8eef7 !important;
+        background: var(--bg) !important;
+        color: var(--text) !important;
     }
 
     /* Sidebar background */
     section[data-testid="stSidebar"] {
-        background: #0f1a2e !important;
+        background: var(--sidebar) !important;
+        border-right: 1px solid rgba(255,255,255,0.06);
     }
 
-    /* Remove default white block backgrounds */
-    .block-container {
-        background: transparent !important;
+    /* Remove default white blocks */
+    .block-container { background: transparent !important; }
+
+    /* Header transparent */
+    header[data-testid="stHeader"] {
+        background: rgba(0,0,0,0) !important;
+    }
+
+    /* Inputs text */
+    label, .stMarkdown, .stText, .stCaption {
+        color: var(--text) !important;
     }
 
     /* Inputs */
-    input, textarea, select {
-        background-color: #0f1a2e !important;
-        color: #e8eef7 !important;
-        border: 1px solid rgba(255,255,255,0.1) !important;
+    input, textarea {
+        background-color: var(--sidebar) !important;
+        color: var(--text) !important;
+        border: 1px solid var(--border) !important;
     }
 
-    /* Streamlit metric cards + containers */
-    div[data-testid="stMetric"], div.stMetric {
-        background: rgba(255, 255, 255, 0.06) !important;
-        border: 1px solid rgba(255,255,255,0.10) !important;
-        border-radius: 16px !important;
-        padding: 12px !important;
+    /* ✅ Selectbox / dropdown (BaseWeb) */
+    div[data-baseweb="select"] > div {
+        background-color: var(--sidebar) !important;
+        border: 1px solid var(--border) !important;
+        color: var(--text) !important;
+        border-radius: 12px !important;
     }
 
-    /* Tabs styling */
+    /* Dropdown menu */
+    ul[role="listbox"] {
+        background-color: #0b1426 !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 12px !important;
+    }
+    li[role="option"] {
+        color: var(--text) !important;
+    }
+    li[role="option"]:hover {
+        background: rgba(46,204,113,0.15) !important;
+    }
+
+    /* ✅ Number input stepper (+/-) buttons */
+    div[data-testid="stNumberInput"] button {
+        background: #0b1426 !important;
+        border: 1px solid var(--border) !important;
+        color: var(--text) !important;
+        border-radius: 10px !important;
+    }
+    div[data-testid="stNumberInput"] button:hover {
+        background: rgba(46,204,113,0.18) !important;
+        border-color: rgba(46,204,113,0.35) !important;
+    }
+
+    /* ✅ Sliders (green) */
+    div[data-testid="stSlider"] [role="slider"] {
+        background-color: var(--primary) !important;
+        border-color: var(--primary) !important;
+    }
+    div[data-testid="stSlider"] div[aria-valuenow] {
+        color: var(--primary) !important;
+    }
+    div[data-testid="stSlider"] > div > div > div > div {
+        background: var(--primary) !important;
+    }
+
+    /* ✅ Tabs styling */
     button[data-baseweb="tab"] {
-        background: rgba(46, 204, 113, 0.15) !important;
-        color: #e8eef7 !important;
+        background: rgba(46, 204, 113, 0.12) !important;
+        color: var(--text) !important;
         border-radius: 999px !important;
+        border: 1px solid rgba(46, 204, 113, 0.22) !important;
+        padding: 0.2rem 0.8rem !important;
     }
 
-    /* Remove weird white padding bars */
-    header[data-testid="stHeader"] {
-        background: rgba(0,0,0,0) !important;
+    /* ✅ Button */
+    .stButton > button {
+        background: var(--primary) !important;
+        border: none !important;
+        color: #00140a !important;
+        font-weight: 900 !important;
+        border-radius: 12px !important;
+        padding: 0.65rem 1rem !important;
+        box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+    }
+    .stButton > button:hover {
+        filter: brightness(1.05);
     }
 
     </style>
     """,
     unsafe_allow_html=True
 )
+
 
 BASE_DIR = Path(__file__).parent
 ASSETS_DIR = BASE_DIR / "assets"
@@ -146,10 +219,6 @@ load_css()
 # Image helper (png/jpg/jpeg/webp)
 # -----------------------
 def img_if_exists(base_name: str, *, width: int | None = None, full: bool = False):
-    """
-    Loads frontend/assets/{base_name}.{png/jpg/jpeg/webp}
-    Example: img_if_exists("logo"), img_if_exists("banner")
-    """
     for ext in ["png", "jpg", "jpeg", "webp"]:
         path = ASSETS_DIR / f"{base_name}.{ext}"
         if path.exists():
@@ -373,9 +442,7 @@ def format_report_text(data: dict) -> str:
     ]:
         lines.append(f"{title}:")
         for x in eff.get(group, []):
-            lines.append(
-                f"- {x.get('action')} (Effort: {x.get('effort')}) | Benefit: {x.get('business_benefit')}"
-            )
+            lines.append(f"- {x.get('action')} (Effort: {x.get('effort')}) | Benefit: {x.get('business_benefit')}")
         lines.append("")
 
     lines.append("== Action Plan ==")
@@ -437,7 +504,6 @@ with st.sidebar:
     holding_cost = st.number_input("Holding cost per unit / year", min_value=1.0, value=20.0)
     ordering_cost = st.number_input("Ordering cost per order", min_value=1.0, value=200.0)
 
-    # backend schema requires >= 0.5
     service_level = st.slider("Service level", min_value=0.50, max_value=0.99, value=0.95, step=0.01)
 
     st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
@@ -448,6 +514,9 @@ with st.sidebar:
         key="generate_plan_btn",
         disabled=st.session_state["loading"],
     )
+
+    if run_btn and not st.session_state["loading"]:
+        st.session_state["trigger_run"] = True
 
 
 # -----------------------
@@ -461,9 +530,10 @@ st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
 
 
 # -----------------------
-# Trigger backend call safely
+# Trigger backend call (safe, prevents infinite spinner)
 # -----------------------
-if run_btn and not st.session_state["loading"]:
+if st.session_state["trigger_run"] and not st.session_state["loading"]:
+    st.session_state["trigger_run"] = False
     st.session_state["loading"] = True
     st.session_state["last_error"] = None
     st.session_state["result"] = None
@@ -490,6 +560,7 @@ if run_btn and not st.session_state["loading"]:
 
     finally:
         st.session_state["loading"] = False
+        st.rerun()
 
 
 # -----------------------
