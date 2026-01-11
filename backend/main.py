@@ -50,5 +50,5 @@ async def analyze_supply_chain(payload: SupplyChainRequest):
     - Gemini efficiency plan
     - Gemini action plan
     """
-    result = await run_controller(payload)
+    result = await run_controller(payload.model_dump())
     return result
