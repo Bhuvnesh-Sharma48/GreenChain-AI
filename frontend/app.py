@@ -111,36 +111,67 @@ st.markdown(
     }
 
     /* ============================================================
-       ✅✅ FIX SLIDER COLOR (Streamlit uses BaseWeb slider)
-       Forces green track + filled track + thumb ring everywhere
+       ✅✅✅ STREAMLIT CLOUD SLIDER FIX (NEW DOM + OLD DOM)
+       - Filled track green
+       - Thumb green
+       - Value label green text WITHOUT background bubble
        ============================================================ */
 
-    /* Slider "track" (full line) */
-    div[data-testid="stSlider"] [data-baseweb="slider"] div {
-        color: var(--text) !important;
+    /* 1) Make slider filled part green (BaseWeb uses div + span mixed depending on build) */
+    div[data-testid="stSlider"] [data-baseweb="slider"] * {
+        box-shadow: none !important;
     }
 
     /* Unfilled track */
-    div[data-testid="stSlider"] [data-baseweb="slider"] > div > div > div {
+    div[data-testid="stSlider"] [data-baseweb="slider"] > div > div {
         background-color: rgba(255,255,255,0.20) !important;
     }
 
-    /* Filled track */
-    div[data-testid="stSlider"] [data-baseweb="slider"] > div > div > div > div {
+    /* Filled track (Cloud frequently uses nested divs) */
+    div[data-testid="stSlider"] [data-baseweb="slider"] > div > div > div {
         background-color: var(--primary) !important;
     }
 
-    /* Thumb */
+    /* Some Streamlit builds use span for filled track */
+    div[data-testid="stSlider"] [data-baseweb="slider"] div[style*="background"] {
+        background-color: var(--primary) !important;
+    }
+
+    /* 2) Thumb / handle */
     div[data-testid="stSlider"] [role="slider"] {
         background-color: var(--primary) !important;
         border: 2px solid var(--primary) !important;
         box-shadow: 0 0 0 4px rgba(46,204,113,0.25) !important;
     }
 
-    /* Slider value label (the number above) */
+    /* 3) Value label (number above slider): remove background box, make green text */
+    div[data-testid="stSlider"] [data-baseweb="slider"] [data-baseweb="tooltip"] {
+        background: transparent !important;   /* remove green bubble */
+        color: var(--primary) !important;     /* green number */
+        padding: 0 !important;
+        border: none !important;
+        font-weight: 900 !important;
+        text-shadow: none !important;
+    }
+
+    /* tooltip inner container */
+    div[data-testid="stSlider"] [data-baseweb="slider"] [data-baseweb="tooltip"] > div {
+        background: transparent !important;
+        color: var(--primary) !important;
+        border: none !important;
+        padding: 0 !important;
+    }
+
+    /* tooltip arrow (remove) */
+    div[data-testid="stSlider"] [data-baseweb="slider"] [data-baseweb="tooltip"] svg {
+        display: none !important;
+    }
+
+    /* fallback selector for older builds */
     div[data-testid="stSlider"] div[aria-valuenow] {
         color: var(--primary) !important;
-        font-weight: 800 !important;
+        font-weight: 900 !important;
+        background: transparent !important;
     }
 
     /* ✅ Tabs styling */
