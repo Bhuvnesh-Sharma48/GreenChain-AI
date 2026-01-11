@@ -29,7 +29,6 @@ if "last_error" not in st.session_state:
 if "trigger_run" not in st.session_state:
     st.session_state["trigger_run"] = False
 
-
 # -----------------------
 # Force Dark Theme + Green Accent (Cloud-safe)
 # -----------------------
@@ -111,16 +110,37 @@ st.markdown(
         border-color: rgba(46,204,113,0.35) !important;
     }
 
-    /* ✅ Sliders (green) */
+    /* ============================================================
+       ✅✅ FIX SLIDER COLOR (Streamlit uses BaseWeb slider)
+       Forces green track + filled track + thumb ring everywhere
+       ============================================================ */
+
+    /* Slider "track" (full line) */
+    div[data-testid="stSlider"] [data-baseweb="slider"] div {
+        color: var(--text) !important;
+    }
+
+    /* Unfilled track */
+    div[data-testid="stSlider"] [data-baseweb="slider"] > div > div > div {
+        background-color: rgba(255,255,255,0.20) !important;
+    }
+
+    /* Filled track */
+    div[data-testid="stSlider"] [data-baseweb="slider"] > div > div > div > div {
+        background-color: var(--primary) !important;
+    }
+
+    /* Thumb */
     div[data-testid="stSlider"] [role="slider"] {
         background-color: var(--primary) !important;
-        border-color: var(--primary) !important;
+        border: 2px solid var(--primary) !important;
+        box-shadow: 0 0 0 4px rgba(46,204,113,0.25) !important;
     }
+
+    /* Slider value label (the number above) */
     div[data-testid="stSlider"] div[aria-valuenow] {
         color: var(--primary) !important;
-    }
-    div[data-testid="stSlider"] > div > div > div > div {
-        background: var(--primary) !important;
+        font-weight: 800 !important;
     }
 
     /* ✅ Tabs styling */
@@ -151,10 +171,8 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-
 BASE_DIR = Path(__file__).parent
 ASSETS_DIR = BASE_DIR / "assets"
-
 
 # -----------------------
 # Styling (Dark glass UI)
@@ -211,12 +229,10 @@ def load_css():
         unsafe_allow_html=True,
     )
 
-
 load_css()
 
-
 # -----------------------
-# Image helper (png/jpg/jpeg/webp)
+# Image helper
 # -----------------------
 def img_if_exists(base_name: str, *, width: int | None = None, full: bool = False):
     for ext in ["png", "jpg", "jpeg", "webp"]:
@@ -229,7 +245,6 @@ def img_if_exists(base_name: str, *, width: int | None = None, full: bool = Fals
             return True
     return False
 
-
 # -----------------------
 # Render helpers
 # -----------------------
@@ -239,7 +254,6 @@ def render_bullets(items):
         return
     for x in items:
         st.write(f"- {x}")
-
 
 def metric_box(label: str, value):
     st.markdown(
@@ -251,7 +265,6 @@ def metric_box(label: str, value):
         """,
         unsafe_allow_html=True,
     )
-
 
 def render_risk_report(risk_report: dict):
     top_risks = risk_report.get("top_risks", [])
@@ -301,7 +314,6 @@ def render_risk_report(risk_report: dict):
         st.write(notes)
         st.markdown("</div>", unsafe_allow_html=True)
 
-
 def render_efficiency_plan(eff: dict):
     st.markdown('<div class="card">', unsafe_allow_html=True)
     st.subheader("Transport Efficiency")
@@ -336,7 +348,6 @@ def render_efficiency_plan(eff: dict):
             f"  Effort: **{item.get('effort','—')}**"
         )
     st.markdown("</div>", unsafe_allow_html=True)
-
 
 def render_action_plan(plan: dict):
     st.markdown('<div class="card">', unsafe_allow_html=True)
@@ -388,7 +399,6 @@ def render_action_plan(plan: dict):
     else:
         st.write("—")
     st.markdown("</div>", unsafe_allow_html=True)
-
 
 def format_report_text(data: dict) -> str:
     inv = data.get("inventory_strategy", {})
@@ -467,7 +477,6 @@ def format_report_text(data: dict) -> str:
 
     return "\n".join(lines)
 
-
 # -----------------------
 # Backend call
 # -----------------------
@@ -476,7 +485,6 @@ def call_backend(payload: dict) -> dict:
     if res.status_code != 200:
         raise RuntimeError(f"Backend error {res.status_code}: {res.text}")
     return res.json()
-
 
 # -----------------------
 # Sidebar
@@ -518,7 +526,6 @@ with st.sidebar:
     if run_btn and not st.session_state["loading"]:
         st.session_state["trigger_run"] = True
 
-
 # -----------------------
 # Banner only
 # -----------------------
@@ -528,9 +535,8 @@ st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
 
-
 # -----------------------
-# Trigger backend call (safe, prevents infinite spinner)
+# Trigger backend call (safe)
 # -----------------------
 if st.session_state["trigger_run"] and not st.session_state["loading"]:
     st.session_state["trigger_run"] = False
@@ -561,7 +567,6 @@ if st.session_state["trigger_run"] and not st.session_state["loading"]:
     finally:
         st.session_state["loading"] = False
         st.rerun()
-
 
 # -----------------------
 # Main render
