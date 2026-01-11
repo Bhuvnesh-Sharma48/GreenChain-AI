@@ -1,11 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from schemas import SupplyChainInput
+from schemas import SupplyChainRequest, SupplyChainResponse
 from agents.controller import run_controller
 
 # -------------------------
-# Create FastAPI app FIRST
+# Create app FIRST
 # -------------------------
 app = FastAPI(
     title="GreenChain AI Backend",
@@ -14,19 +14,18 @@ app = FastAPI(
 )
 
 # -------------------------
-# CORS middleware (important for Streamlit Cloud)
+# CORS (required for Streamlit Cloud)
 # -------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # for production, restrict to your Streamlit URL
+    allow_origins=["*"],  # later restrict to your Streamlit domain
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
 # -------------------------
-# Basic routes
+# Health routes
 # -------------------------
 @app.get("/")
 def home():
@@ -39,12 +38,12 @@ def health():
 
 
 # -------------------------
-# Main API route
+# Main endpoint
 # -------------------------
-@app.post("/analyze_supply_chain")
-async def analyze_supply_chain(payload: SupplyChainInput):
+@app.post("/analyze_supply_chain", response_model=SupplyChainResponse)
+async def analyze_supply_chain(payload: SupplyChainRequest):
     """
-    Runs the agentic controller pipeline:
+    Runs agentic controller pipeline:
     - Inventory calculations
     - Tavily disruption signals
     - Gemini risk report
